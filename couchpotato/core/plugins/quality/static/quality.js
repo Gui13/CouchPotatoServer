@@ -8,16 +8,16 @@ var QualityBase = new Class({
 
 		self.qualities = data.qualities;
 
-		self.profiles = []
+		self.profiles = [];
 		Array.each(data.profiles, self.createProfilesClass.bind(self));
 
-		App.addEvent('load', self.addSettings.bind(self))
+		App.addEvent('loadSettings', self.addSettings.bind(self))
 
 	},
 
 	getProfile: function(id){
 		return this.profiles.filter(function(profile){
-			return profile.data.id == id
+			return profile.data._id == id
 		}).pick()
 	},
 
@@ -28,20 +28,26 @@ var QualityBase = new Class({
 		});
 	},
 
-	getQuality: function(id){
-		return this.qualities.filter(function(q){
-			return q.id == id;
-		}).pick();
+	getQuality: function(identifier){
+		try {
+			return this.qualities.filter(function(q){
+				return q.identifier == identifier;
+			}).pick();
+		}
+		catch(e){}
+		
+		return {}
 	},
 
 	addSettings: function(){
 		var self = this;
 
-		self.settings = App.getPage('Settings')
+		self.settings = App.getPage('Settings');
 		self.settings.addEvent('create', function(){
 			var tab = self.settings.createSubTab('profile', {
 				'label': 'Quality',
-				'name': 'profile'
+				'name': 'profile',
+				'subtab_label': 'Qualities'
 			}, self.settings.tabs.searcher ,'searcher');
 
 			self.tab = tab.tab;
@@ -90,9 +96,9 @@ var QualityBase = new Class({
 	createProfilesClass: function(data){
 		var self = this;
 
-		var data = data || {'id': randomString()}
-		var profile = new Profile(data)
-		self.profiles.include(profile)
+		var data = data || {'id': randomString()};
+		var profile = new Profile(data);
+		self.profiles.include(profile);
 
 		return profile;
 	},
@@ -101,8 +107,9 @@ var QualityBase = new Class({
 		var self = this;
 
 		var profile_list;
-		var group = self.settings.createGroup({
-			'label': 'Profile Defaults'
+		self.settings.createGroup({
+			'label': 'Profile Defaults',
+			'description': '(Needs refresh \'' +(App.isMac() ? 'CMD+R' : 'F5')+ '\' after editing)'
 		}).adopt(
 			new Element('.ctrlHolder#profile_ordering').adopt(
 				new Element('label[text=Order]'),
@@ -111,11 +118,11 @@ var QualityBase = new Class({
 					'html': 'Change the order the profiles are in the dropdown list. Uncheck to hide it completely.<br />First one will be default.'
 				})
 			)
-		).inject(self.content)
+		).inject(self.content);
 
 		Array.each(self.profiles, function(profile){
 			var check;
-			new Element('li', {'data-id': profile.data.id}).adopt(
+			new Element('li', {'data-id': profile.data._id}).adopt(
 				check = new Element('input.inlay[type=checkbox]', {
 					'checked': !profile.data.hide,
 					'events': {
@@ -133,20 +140,28 @@ var QualityBase = new Class({
 		});
 
 		// Sortable
+		var sorted_changed = false;
 		self.profile_sortable = new Sortables(profile_list, {
 			'revert': true,
-			'handle': '',
+			'handle': '.handle',
 			'opacity': 0.5,
-			'onComplete': self.saveProfileOrdering.bind(self)
+			'onSort': function(){
+				sorted_changed = true;
+			},
+			'onComplete': function(){
+				if(sorted_changed){
+					self.saveProfileOrdering();
+					sorted_changed = false;
+				}
+			}
 		});
 
 	},
 
 	saveProfileOrdering: function(){
-		var self = this;
-
-		var ids = [];
-		var hidden = [];
+		var self = this,
+			ids = [],
+			hidden = [];
 
 		self.profile_sortable.list.getElements('li').each(function(el, nr){
 			ids.include(el.get('data-id'));
@@ -173,14 +188,14 @@ var QualityBase = new Class({
 			'description': 'Edit the minimal and maximum sizes (in MB) for each quality.',
 			'advanced': true,
 			'name': 'sizes'
-		}).inject(self.content)
+		}).inject(self.content);
 
 
 		new Element('div.item.head.ctrlHolder').adopt(
 			new Element('span.label', {'text': 'Quality'}),
 			new Element('span.min', {'text': 'Min'}),
 			new Element('span.max', {'text': 'Max'})
-		).inject(group)
+		).inject(group);
 
 		Array.each(self.qualities, function(quality){
 			new Element('div.ctrlHolder.item').adopt(

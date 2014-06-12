@@ -1,3 +1,5 @@
+#!/bin/sh
+#
 ### BEGIN INIT INFO
 # Provides:          CouchPotato application instance
 # Required-Start:    $all
@@ -11,13 +13,13 @@
 # Source function library.
 . /etc/init.d/functions
 
+prog=couchpotato
+lockfile=/var/lock/subsys/$prog
+
 # Source couchpotato configuration
 if [ -f /etc/sysconfig/couchpotato ]; then
         . /etc/sysconfig/couchpotato
 fi
-
-prog=couchpotato
-lockfile=/var/lock/subsys/$prog
 
 ## Edit user configuation in /etc/sysconfig/couchpotato to change
 ## the defaults

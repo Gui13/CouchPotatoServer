@@ -2,6 +2,7 @@ Page.Wizard = new Class({
 
 	Extends: Page.Settings,
 
+	order: 70,
 	name: 'wizard',
 	has_tab: false,
 	wizard_only: true,
@@ -9,27 +10,12 @@ Page.Wizard = new Class({
 	headers: {
 		'welcome': {
 			'title': 'Welcome to the new CouchPotato',
-			'description': 'To get started, fill in each of the following settings as much as you can. <br />Maybe first start with importing your movies from the previous CouchPotato',
+			'description': 'To get started, fill in each of the following settings as much as you can.',
 			'content': new Element('div', {
 				'styles': {
 					'margin': '0 0 0 30px'
 				}
-			}).adopt(
-				new Element('div', {
-					'html': 'Select the <strong>data.db</strong>. It should be in your CouchPotato root directory.'
-				}),
-				self.import_iframe = new Element('iframe', {
-					'styles': {
-						'height': 40,
-						'width': 300,
-						'border': 0,
-						'overflow': 'hidden'
-					}
-				})
-			),
-			'event': function(){
-				self.import_iframe.set('src', Api.createUrl('v1.import'))
-			}
+			})
 		},
 		'general': {
 			'title': 'General',
@@ -39,10 +25,10 @@ Page.Wizard = new Class({
 			'title': 'What download apps are you using?',
 			'description': 'CP needs an external download app to work with. Choose one below. For more downloaders check settings after you have filled in the wizard. If your download app isn\'t in the list, use the default Blackhole.'
 		},
-		'providers': {
+		'searcher': {
+			'label': 'Providers',
 			'title': 'Are you registered at any of these sites?',
-			'description': 'CP uses these sites to search for movies. A few free are enabled by default, but it\'s always better to have a few more. Check settings for the full list of available providers.',
-			'include': ['nzb_providers', 'torrent_providers']
+			'description': 'CP uses these sites to search for movies. A few free are enabled by default, but it\'s always better to have more.'
 		},
 		'renamer': {
 			'title': 'Move & rename the movies after downloading?',
@@ -50,11 +36,11 @@ Page.Wizard = new Class({
 		},
 		'automation': {
 			'title': 'Easily add movies to your wanted list!',
-			'description': 'You can easily add movies from your favorite movie site, like IMDB, Rotten Tomatoes, Apple Trailers and more. Just install the userscript or drag the bookmarklet to your browsers bookmarks.' +
+			'description': 'You can easily add movies from your favorite movie site, like IMDB, Rotten Tomatoes, Apple Trailers and more. Just install the extension or drag the bookmarklet to your bookmarks.' +
 				'<br />Once installed, just click the bookmarklet on a movie page and watch the magic happen ;)',
 			'content': function(){
 				return App.createUserscriptButtons().setStyles({
-					'background-image': "url('"+Api.createUrl('static/userscript/userscript.png')+"')"
+					'background-image': "url('https://couchpota.to/media/images/userscript.gif')"
 				})
 			}
 		},
@@ -83,7 +69,7 @@ Page.Wizard = new Class({
 									'target': self.el
 								},
 								'onComplete': function(){
-									window.location = App.createUrl();
+									window.location = App.createUrl('wanted');
 								}
 							});
 						}
@@ -92,7 +78,7 @@ Page.Wizard = new Class({
 			)
 		}
 	},
-	groups: ['welcome', 'general', 'downloaders', 'searcher', 'providers', 'renamer', 'automation', 'finish'],
+	groups: ['welcome', 'general', 'downloaders', 'searcher', 'renamer', 'automation', 'finish'],
 
 	open: function(action, params){
 		var self = this;
@@ -104,7 +90,7 @@ Page.Wizard = new Class({
 			self.parent(action, params);
 
 			self.addEvent('create', function(){
-				self.order();
+				self.orderGroups();
 			});
 
 			self.initialized = true;
@@ -120,16 +106,16 @@ Page.Wizard = new Class({
 			}).delay(1)
 	},
 
-	order: function(){
+	orderGroups: function(){
 		var self = this;
 
 		var form = self.el.getElement('.uniForm');
 		var tabs = self.el.getElement('.tabs');
 
-		self.groups.each(function(group, nr){
+		self.groups.each(function(group){
 
 			if(self.headers[group]){
-				group_container = new Element('.wgroup_'+group, {
+				var group_container = new Element('.wgroup_'+group, {
 					'styles': {
 						'opacity': 0.2
 					},
@@ -144,7 +130,7 @@ Page.Wizard = new Class({
 					})
 				}
 
-				var content = self.headers[group].content
+				var content = self.headers[group].content;
 				group_container.adopt(
 					new Element('h1', {
 						'text': self.headers[group].title
@@ -159,7 +145,7 @@ Page.Wizard = new Class({
 			var tab_navigation = tabs.getElement('.t_'+group);
 
 			if(!tab_navigation && self.headers[group] && self.headers[group].include){
-				tab_navigation = []
+				tab_navigation = [];
 				self.headers[group].include.each(function(inc){
 					tab_navigation.include(tabs.getElement('.t_'+inc));
 				})
@@ -172,14 +158,14 @@ Page.Wizard = new Class({
 
 					self.headers[group].include.each(function(inc){
 						self.el.getElement('.tab_'+inc).inject(group_container);
-					})
+					});
 
 					new Element('li.t_'+group).adopt(
 						new Element('a', {
 							'href': App.createUrl('wizard/'+group),
 							'text': (self.headers[group].label || group).capitalize()
 						})
-					).inject(tabs);
+					).inject(tabs)
 
 				}
 				else
@@ -211,19 +197,10 @@ Page.Wizard = new Class({
 		self.el.getElement('.advanced_toggle').destroy();
 
 		// Hide retention
-		self.el.getElement('.tab_searcher').hide();
-		self.el.getElement('.t_searcher').hide();
-		self.el.getElement('.t_nzb_providers').hide();
-		self.el.getElement('.t_torrent_providers').hide();
+		self.el.getElement('.section_nzb').hide();
 
 		// Add pointer
-		new Element('.tab_wrapper').wraps(tabs).adopt(
-			self.pointer = new Element('.pointer', {
-				'tween': {
-					'transition': 'quint:in:out'
-				}
-			})
-		);
+		new Element('.tab_wrapper').wraps(tabs);
 
 		// Add nav
 		var minimum = self.el.getSize().y-window.getSize().y;
@@ -235,16 +212,18 @@ Page.Wizard = new Class({
 			if(!t) return;
 
 			var func = function(){
-				var ct = t.getCoordinates();
-				self.pointer.tween('left', ct.left+(ct.width/2)-(self.pointer.getWidth()/2));
+				// Activate all previous ones
+				self.groups.each(function(groups2, nr2){
+					var t2 = self.el.getElement('.t_'+groups2);
+						t2[nr2 > nr ? 'removeClass' : 'addClass' ]('done');
+				});
 				g.tween('opacity', 1);
-			}
+			};
 
 			if(nr == 0)
 				func();
 
-
-			var ss = new ScrollSpy( {
+			new ScrollSpy( {
 				min: function(){
 					var c = g.getCoordinates();
 					var top = c.top-(window.getSize().y/2);
